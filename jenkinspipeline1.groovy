@@ -6,9 +6,9 @@ pipeline {
 
     environment {
 
-        DEV_REPO = 'https://github.com/company/dev-repo.git'
+        DEV_REPO = 'https://github.com/insightedgepune/JenkinsProject.git'
 
-        DEVOPS_REPO = 'https://github.com/company/devops-repo.git'
+        DEVOPS_REPO = 'https://github.com/insightedgepune/devopscode.git'
     }
 
     stages {
