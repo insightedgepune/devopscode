@@ -1,0 +1,30 @@
+
+    - name: Reload systemd daemon
+      systemd:
+        daemon_reload: yes
+
+    - name: Enable Flask service
+      systemd:
+        name: "{{ service_name }}"
+        enabled: yes
+
+    - name: Start Flask service
+      systemd:
+        name: "{{ service_name }}"
+        state: started
+
+    - name: Wait for Flask port 5000 to become available
+      wait_for:
+        host: 192.168.1.6
+        port: 5000
+        delay: 5
+        timeout: 120
+        state: started
+
+    - name: Verify Flask application using curl
+      shell: curl http://192.168.1.6:5000/health
+      register: flask_output
+
+    - name: Display application response
+      debug:
+        var: flask_output.stdout
