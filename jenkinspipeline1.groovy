@@ -18,7 +18,6 @@ pipeline {
             steps {
 
                 git branch: 'main',
-                credentialsId: 'jenkinproj',
                 url: "${DEV_REPO}"
             }
         }
