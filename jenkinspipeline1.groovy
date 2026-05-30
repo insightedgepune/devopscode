@@ -18,7 +18,7 @@ pipeline {
             steps {
 
                 git branch: 'main',
-                credentialsId: 'git-token',
+                credentialsId: 'jenkinproj',
                 url: "${DEV_REPO}"
             }
         }
@@ -30,7 +30,7 @@ pipeline {
                 dir('devops') {
 
                     git branch: 'main',
-                    credentialsId: 'git-token',
+                    credentialsId: 'jenkinproj',
                     url: "${DEVOPS_REPO}"
                 }
             }
