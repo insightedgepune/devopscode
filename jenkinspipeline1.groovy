@@ -45,7 +45,7 @@ pipeline {
                     sh '''
                     ansible-playbook \
                     -i devops/inventory \
-                    devops/deploy_flask.yml
+                    devops/deploy_20may.yml
                     '''
                 }
             }
