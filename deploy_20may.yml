@@ -1,6 +1,7 @@
 - name: Deploy Flask Application without
   hosts: web
   become: yes
+  gather_facts: no
 
   vars:
     repo_url: "https://github.com/insightedgepune/JenkinsProject.git"
