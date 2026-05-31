@@ -38,7 +38,7 @@ pipeline {
 
                 ansible-playbook \
                 -i devops/inventory \
-                devops/deploy_20may.yml -K
+                devops/deploy_20may.yml
                 '''
             }
         }
