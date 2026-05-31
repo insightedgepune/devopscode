@@ -1,0 +1,55 @@
+pipeline {
+
+    agent {
+        label 'jenkins-agent-2'
+    }
+
+    environment {
+        DEV_REPO = 'https://github.com/insightedgepune/JenkinsProject.git'
+        DEVOPS_REPO = 'https://github.com/insightedgepune/devopscode.git'
+    }
+
+    stages {
+
+        stage('Checkout Dev Repo') {
+            steps {
+                git branch: 'main',
+                credentialsId: 'dev_repo',
+                url: "${DEV_REPO}"
+            }
+        }
+
+        stage('Checkout DevOps Repo') {
+            steps {
+                dir('devops') {
+                    git branch: 'main',
+                    credentialsId: 'jenkinproj',
+                    url: "${DEVOPS_REPO}"
+                }
+            }
+        }
+
+        stage('Deploy Flask App') {
+            steps {
+                sh '''
+                pwd
+                ls -lrt
+                ls -lrt devops
+
+                ansible-playbook \
+                -i devops/inventory \
+                devops/deploy_flask.yml -K
+                '''
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Deployment Successful'
+        }
+        failure {
+            echo 'Deployment Failed'
+        }
+    }
+}
