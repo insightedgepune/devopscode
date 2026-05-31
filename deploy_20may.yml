@@ -1,0 +1,134 @@
+- name: Deploy Flask Application without
+  hosts: web
+  become: yes
+
+  vars:
+    repo_url: "https://github.com/insightedgepune/JenkinsProject.git"
+    app_dir: /home/vboxuser/flask_app
+    service_name: flask_app
+
+  tasks:
+
+    - name: Wait until apt/dpkg lock is released with timeout
+      shell: |
+        LOCK_FILES="/var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/cache/apt/archives/lock"
+        TIMEOUT=300
+        START_TIME=$(date +%s)
+
+        while true; do
+          LOCKED=false
+          for LOCK_FILE in $LOCK_FILES; do
+            if fuser $LOCK_FILE > /dev/null 2>&1; then
+              LOCKED=true
+              break
+            fi
+          done
+
+          if [ "$LOCKED" = false ]; then
+            echo "No apt/dpkg lock detected."
+            exit 0
+          fi
+
+          CURRENT_TIME=$(date +%s)
+          ELAPSED=$((CURRENT_TIME - START_TIME))
+          if [ "$ELAPSED" -ge "$TIMEOUT" ]; then
+            echo "Timeout reached waiting for apt/dpkg lock."
+            exit 1
+          fi
+
+          echo "Lock detected, waiting..."
+          sleep 10
+        done
+      changed_when: false
+      register: wait_result
+      ignore_errors: yes
+
+    - name: Fail if apt/dpkg lock is still active after waiting period
+      fail:
+        msg: "apt/dpkg lock is still active after waiting period."
+      when: wait_result.rc != 0
+
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install required packages
+      apt:
+        name:
+          - python3
+          - python3-pip
+          - git
+          - curl
+          - python3-venv  # Ensure venv module is available
+        state: present
+
+    - name: Create application directory
+      file:
+        path: "{{ app_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Clone Flask application repository
+      git:
+        repo: "{{ repo_url }}"
+        dest: "{{ app_dir }}"
+        version: main
+        force: yes
+
+    - name: Create a virtual environment for the project
+      command: python3 -m venv {{ app_dir }}/venv
+      args:
+        creates: "{{ app_dir }}/venv"
+
+    - name: Install Python dependencies into virtual environment
+      pip:
+        requirements: "{{ app_dir }}/requirements.txt"
+        executable: "{{ app_dir }}/venv/bin/pip"
+
+    - name: Create systemd service for Flask app
+      copy:
+        dest: /etc/systemd/system/{{ service_name }}.service
+        content: |
+          [Unit]
+          Description=Flask Application Service
+          After=network.target
+
+          [Service]
+          User=root
+          WorkingDirectory={{ app_dir }}
+          ExecStart={{ app_dir }}/venv/bin/python {{ app_dir }}/app_web.py
+          Restart=always
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Reload systemd daemon
+      systemd:
+        daemon_reload: yes
+
+    - name: Enable Flask service
+      systemd:
+        name: "{{ service_name }}"
+        enabled: yes
+
+    - name: Start Flask service
+      systemd:
+        name: "{{ service_name }}"
+        state: started
+
+    - name: Wait for Flask port 5000 to become available
+      wait_for:
+        host: 192.168.1.23
+        port: 5000
+        delay: 5
+        timeout: 120
+        state: started
+
+    - name: Verify Flask application using curl
+      shell: curl http://192.168.1.23:5000/health
+      register: flask_output
+
+    - name: Display application response
+      debug:
+        var: flask_output.stdout
