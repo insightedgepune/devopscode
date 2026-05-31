@@ -1,6 +1,6 @@
 - name: Deploy Flask Application without
   hosts: web
-  become: yes
+  become: no
   gather_facts: no
 
   vars:
