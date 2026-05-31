@@ -18,6 +18,7 @@ pipeline {
             steps {
 
                 git branch: 'main',
+                credentialsId: 'dev_repo',
                 url: "${DEV_REPO}"
             }
         }
