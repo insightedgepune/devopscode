@@ -8,7 +8,7 @@ pipeline {
 
         DEV_REPO = 'https://github.com/insightedgepune/JenkinsProject.git'
 
-        IMAGE_NAME = 'yourdockerhubuser/flask-web-app'
+        IMAGE_NAME = '310383/flask-web-app'
 
         TARGET_SERVER = '192.168.1.23'
     }
