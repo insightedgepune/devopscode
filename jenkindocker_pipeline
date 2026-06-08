@@ -50,7 +50,7 @@ pipeline {
                 echo "Building Docker image..."
 
                 sh """
-                cd ./JenkinsProject
+                pwd
                 docker build -t ${FULL_IMAGE_NAME} .
                 """
             }
