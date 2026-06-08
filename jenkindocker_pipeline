@@ -1,5 +1,5 @@
 pipeline {
-    agent { label 'dev' }
+    agent { label 'jenkins-agent-2' }
 
     environment {
         // GitHub details
