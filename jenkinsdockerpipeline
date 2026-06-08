@@ -1,0 +1,114 @@
+pipeline {
+
+    agent {
+        label 'jenkins-agent-2'
+    }
+
+    environment {
+
+        DEV_REPO = 'https://github.com/insightedgepune/JenkinsProject.git'
+
+        IMAGE_NAME = 'yourdockerhubuser/flask-web-app'
+
+        TARGET_SERVER = '192.168.1.23'
+    }
+
+    stages {
+
+        stage('Checkout Application') {
+
+            steps {
+
+                git branch: 'Jenkins-Project',
+                    credentialsId: 'github-creds',
+                    url: "${DEV_REPO}"
+            }
+        }
+
+        stage('Build Docker Image') {
+
+            steps {
+
+                sh '''
+                docker build -t ${IMAGE_NAME}:${BUILD_NUMBER} .
+                docker tag ${IMAGE_NAME}:${BUILD_NUMBER} ${IMAGE_NAME}:latest
+                '''
+            }
+        }
+
+        stage('Push To DockerHub') {
+
+            steps {
+
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'dockerhub-creds',
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_PASS'
+                    )
+                ]) {
+
+                    sh '''
+                    echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+
+                    docker push ${IMAGE_NAME}:${BUILD_NUMBER}
+
+                    docker push ${IMAGE_NAME}:latest
+                    '''
+                }
+            }
+        }
+
+        stage('Deploy To Target Server') {
+
+            steps {
+
+                sshagent(['target-server-key']) {
+
+                    sh '''
+                    ssh -o StrictHostKeyChecking=no vboxuser@${TARGET_SERVER} << EOF
+
+                    docker pull ${IMAGE_NAME}:latest
+
+                    docker stop flask-app || true
+
+                    docker rm flask-app || true
+
+                    docker run -d \
+                      --name flask-app \
+                      -p 5000:5001 \
+                      --restart always \
+                      ${IMAGE_NAME}:latest
+
+                    EOF
+                    '''
+                }
+            }
+        }
+
+        stage('Health Check') {
+
+            steps {
+
+                sh '''
+                sleep 20
+
+                curl http://${TARGET_SERVER}:5000
+                '''
+            }
+        }
+    }
+
+    post {
+
+        success {
+
+            echo 'Deployment Successful'
+        }
+
+        failure {
+
+            echo 'Deployment Failed'
+        }
+    }
+}
