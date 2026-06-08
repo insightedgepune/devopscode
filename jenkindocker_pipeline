@@ -1,0 +1,165 @@
+pipeline {
+    agent { label 'dev' }
+
+    environment {
+        // GitHub details
+        GIT_REPO_URL = "https://github.com/insightedgepune/JenkinsProject.git"
+        GIT_BRANCH_NAME = "Jenkin-Docker"
+
+        // Docker image details
+        IMAGE_NAME = "flask-jenkins-demo"
+        IMAGE_TAG = "latest"
+        FULL_IMAGE_NAME = "${DOCKERHUB_USERNAME}/${IMAGE_NAME}:${IMAGE_TAG}"
+
+        // Application details
+        CONTAINER_NAME = "flask-app"
+        HOST_PORT = "5001"
+        CONTAINER_PORT = "5001"
+
+        // Target Docker host details
+        TARGET_USER = "vboxuser"
+        TARGET_SERVER = "192.168.1.23"
+    }
+
+    stages {
+
+        stage('Clone Repository') {
+            steps {
+                echo "Cloning Flask application source code from GitHub..."
+
+                git branch: "${GIT_BRANCH_NAME}",
+                    credentialsId: "${env.GIT_CREDENTIALS_ID}",
+                    url: "${GIT_REPO_URL}"
+            }
+        }
+
+        stage('Check Docker on Jenkins Agent') {
+            steps {
+                echo "Checking Docker version on Jenkins agent..."
+
+                sh """
+                docker --version
+                whoami
+                groups
+                """
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                echo "Building Docker image..."
+
+                sh """
+                cd ./JenkinsProject
+                docker build -t ${FULL_IMAGE_NAME} .
+                """
+            }
+        }
+
+        stage('Check DockerHub Environment') {
+            steps {
+                echo "Checking DockerHub environment variables..."
+
+                sh """
+                echo "Current user:"
+                whoami
+
+                echo "DockerHub username:"
+                echo "\$DOCKERHUB_USERNAME"
+
+                echo "DockerHub token length:"
+                echo "\${#DOCKERHUB_TOKEN}"
+                """
+            }
+        }
+
+        stage('Login to Docker Hub on Jenkins Agent') {
+            steps {
+                echo "Logging in to Docker Hub on Jenkins agent..."
+
+                sh """
+                set +x
+                docker logout || true
+                echo "\$DOCKERHUB_TOKEN" | docker login -u "\$DOCKERHUB_USERNAME" --password-stdin
+                set -x
+                """
+            }
+        }
+
+        stage('Push Image to Docker Hub') {
+            steps {
+                echo "Pushing Docker image to Docker Hub..."
+
+                sh """
+                docker push ${FULL_IMAGE_NAME}
+                """
+            }
+        }
+
+        stage('Deploy on Target Docker Host') {
+            steps {
+                echo "Deploying application on target Docker host..."
+
+                sh """
+                set +x
+                ssh -o StrictHostKeyChecking=no ${TARGET_USER}@${TARGET_SERVER} "
+                    echo 'Connected to target Docker host'
+
+                    echo 'Checking Docker version on target server'
+                    docker --version
+
+                    echo 'Logging in to Docker Hub on target server'
+                    echo '${DOCKERHUB_TOKEN}' | docker login -u '${DOCKERHUB_USERNAME}' --password-stdin
+
+                    echo 'Pulling latest Docker image from Docker Hub'
+                    docker pull ${FULL_IMAGE_NAME}
+
+                    echo 'Checking if old container exists'
+                    if docker ps -a --format '{{.Names}}' | grep -w ${CONTAINER_NAME}; then
+                        echo 'Old container found: ${CONTAINER_NAME}'
+
+                        echo 'Stopping old container'
+                        docker stop ${CONTAINER_NAME} || true
+
+                        echo 'Removing old container'
+                        docker rm ${CONTAINER_NAME} || true
+                    else
+                        echo 'No old container found'
+                    fi
+
+                    echo 'Running new container'
+                    docker run -d --name ${CONTAINER_NAME} -p ${HOST_PORT}:${CONTAINER_PORT} ${FULL_IMAGE_NAME}
+
+                    echo 'Checking running container'
+                    docker ps | grep ${CONTAINER_NAME}
+                "
+                set -x
+                """
+            }
+        }
+
+        stage('Verify Deployment') {
+            steps {
+                echo "Verifying application from Jenkins agent..."
+
+                sh """
+                curl -I http://${TARGET_SERVER}:${HOST_PORT} || true
+                """
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "Application deployed successfully using Jenkins, Docker Hub, and Target Docker Host."
+        }
+
+        failure {
+            echo "Pipeline failed. Please check Jenkins console logs."
+        }
+
+        always {
+            echo "Pipeline execution completed."
+        }
+    }
+}
