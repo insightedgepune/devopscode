@@ -48,7 +48,9 @@ pipeline {
                     -e SONAR_HOST_URL=$SONAR_URL \
                     -e SONAR_TOKEN=$SONAR_TOKEN \
                     -v $(pwd):/usr/src \
-                    sonarsource/sonar-scanner-cli
+                    sonarsource/sonar-scanner-cli \
+                    -Dsonar.projectKey=flask-app \
+                    -Dsonar.sources=.
                     '''
                 }
             }
