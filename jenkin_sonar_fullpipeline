@@ -141,7 +141,7 @@ steps {
 
 sh '''
 
-ssh rupali@$TARGET "
+ssh vboxuser@$TARGET "
 
 docker stop flask-container || true
 
