@@ -99,8 +99,8 @@ passwordVariable:'DOCKER_TOKEN'
 
 sh '''
 
-echo $PASS | docker login \
--u $USER \
+echo $DOCKER_TOKEN | docker login \
+-u $DOCKER_USER \
 --password-stdin
 
 '''
