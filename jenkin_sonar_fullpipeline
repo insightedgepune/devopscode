@@ -1,0 +1,193 @@
+pipeline {
+
+agent {
+    label 'jenkins-agent-2'
+}
+
+
+environment {
+
+IMAGE="310383/flask-feedback-app:v1"
+
+TARGET="192.168.1.23"
+
+}
+
+
+stages {
+
+
+stage('Checkout App Code') {
+
+steps {
+
+git branch:'main',
+credentialsId:'dev_repo',
+url:'https://github.com/insightedgepune/Jenkins-Sonarqube.git'
+
+}
+
+}
+
+
+
+stage('Sonar Scan') {
+
+
+steps {
+
+withCredentials([
+string(
+credentialsId:'jenkin-sonar',
+variable:'SONAR_TOKEN'
+)
+])
+{
+
+
+sh '''
+
+docker run --rm \
+-e SONAR_HOST_URL=http://192.168.1.19:9000 \
+-e SONAR_TOKEN=$SONAR_TOKEN \
+-v $(pwd):/usr/src \
+sonarsource/sonar-scanner-cli \
+-Dsonar.projectKey=flask-app \
+-Dsonar.sources=.
+
+'''
+
+}
+
+}
+
+}
+
+
+
+stage('Docker Build') {
+
+steps {
+
+sh '''
+
+docker build \
+-t $IMAGE .
+
+'''
+
+}
+
+}
+
+
+
+stage('Docker Login') {
+
+steps {
+
+
+withCredentials([
+usernamePassword(
+credentialsId:'dockerhub-creds',
+usernameVariable:'DOCKER_USER',
+passwordVariable:'DOCKER_PASS'
+)
+])
+{
+
+
+sh '''
+
+echo $PASS | docker login \
+-u $USER \
+--password-stdin
+
+'''
+
+}
+
+
+}
+
+}
+
+
+
+stage('Push Image') {
+
+
+steps {
+
+
+sh '''
+
+docker push $IMAGE
+
+'''
+
+}
+
+}
+
+
+
+
+stage('Deploy To Target') {
+
+
+steps {
+
+
+sh '''
+
+ssh rupali@$TARGET "
+
+docker stop flask-container || true
+
+docker rm flask-container || true
+
+
+docker pull $IMAGE
+
+
+docker run -d \
+--name flask-container \
+-p 5001:5001 \
+--restart always \
+$IMAGE
+
+"
+
+'''
+
+}
+
+
+}
+
+
+
+}
+
+
+post {
+
+
+success {
+
+echo "Deployment Successful"
+
+}
+
+
+failure {
+
+echo "Deployment Failed"
+
+}
+
+
+}
+
+}
