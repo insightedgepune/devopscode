@@ -39,7 +39,7 @@ pipeline {
             steps {
 
                 withCredentials([
-                    string(credentialsId: 'sonar-token',
+                    string(credentialsId: 'jenkin-sonar',
                     variable: 'SONAR_TOKEN')
                 ]) {
 
