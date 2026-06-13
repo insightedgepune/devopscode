@@ -1,12 +1,6 @@
-#!/bin/bash
-
-docker stop flask-container || true
-
-docker rm flask-container || true
-
+docker rm -f flask-container || true
 
 docker pull 310383/flask-feedback-app:v1
-
 
 docker run -d \
 --name flask-container \
